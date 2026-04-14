@@ -126,11 +126,46 @@ You can add more tests in `tests/test_recommender.py`.
 
 ## Experiments You Tried
 
-Use this section to document the experiments you ran. For example:
+### Profile Tests
 
-- What happened when you changed the weight on genre from 2.0 to 0.5
-- What happened when you added tempo or valence to the score
-- How did your system behave for different types of users
+Four profiles were tested against the 20-song catalog. Terminal output for each is below.
+
+**Happy Pop** `genre=pop | mood=happy | energy=0.8`
+- #1 Sunrise City (3.98/4.00) — near-perfect: pop, happy, energy 0.82. Almost the maximum possible score.
+- #2 Gym Hero (2.87) — same genre, wrong mood (intense), energy close. Genre alone accounts for most of the score.
+- Takeaway: works intuitively. A song has to match all three signals to dominate.
+
+**Chill Lofi** `genre=lofi | mood=chill | energy=0.35`
+- #1 Library Rain (4.00/4.00) — perfect score. Every signal aligned.
+- Top 3 are all lofi. The catalog has 3 lofi songs so they sweep the top results.
+- Takeaway: when multiple songs share the same genre, the catalog depth within that genre drives variety.
+
+**Deep Rock** `genre=rock | mood=intense | energy=0.9`
+- #1 Storm Runner (3.99/4.00) — near-perfect. But there is only one rock song in the catalog.
+- #2–5 are all from unrelated genres. Gym Hero (#2) scored because of mood match (intense) + energy, not genre.
+- Takeaway: **sparse genres are a major limitation**. One rock song means the recommender can't provide meaningful rock variety.
+
+**Adversarial EDM** `genre=edm | mood=peaceful | energy=0.95` *(conflicting signals)*
+- #1 Overdrive (edm/energetic, 2.99) — genre match wins even though mood is completely wrong.
+- #2 Campfire Lullaby (folk/peaceful, 1.34) — only song with a peaceful mood, but it scores low because its energy (0.29) is far from the target 0.95.
+- Takeaway: the system cannot satisfy conflicting preferences. High energy AND peaceful is not representable in the current scoring model.
+
+---
+
+### Experiment: Swapping Genre and Mood Weights
+
+**Default:** genre +2.0, mood +1.0  
+**Modified:** genre +1.0, mood +2.0  
+
+Profile tested: `Happy Pop` (genre=pop, mood=happy, energy=0.8)
+
+| Rank | Default weights | Mood-first weights |
+|---|---|---|
+| #1 | Sunrise City (3.98) | Sunrise City (3.98) — unchanged |
+| #2 | Gym Hero (2.87) | **Rooftop Lights (2.96)** |
+| #3 | Rooftop Lights (1.96) | **Gym Hero (1.87)** |
+
+Gym Hero (pop/intense) and Rooftop Lights (indie pop/happy) swapped positions. When mood is worth more, "happy" from the wrong genre beats "pop" from the wrong mood. The #1 result didn't change because Sunrise City matches both signals regardless of which weight is higher.
 
 ---
 
