@@ -17,17 +17,52 @@ Replace this paragraph with your own summary of what your version does.
 
 ## How The System Works
 
-Explain your design in plain language.
+Real-world recommenders like Spotify and TikTok use a mix of two main approaches. **Collaborative filtering** finds users with similar listening histories and assumes you'll like what they liked — it requires a large crowd of users to work well. **Content-based filtering** looks only at the attributes of the songs themselves (genre, mood, energy) and matches them to a user's stated taste profile — it works with a single user and no history. This simulation uses content-based filtering because it is transparent, explainable, and well-suited to a small catalog.
 
-Some prompts to answer:
+### Song Features
 
-- What features does each `Song` use in your system
-  - For example: genre, mood, energy, tempo
-- What information does your `UserProfile` store
-- How does your `Recommender` compute a score for each song
-- How do you choose which songs to recommend
+Each `Song` object uses these attributes from `data/songs.csv`:
 
-You can include a simple diagram or bullet list if helpful.
+| Feature | Description |
+|---|---|
+| `genre` | Categorical label (e.g., pop, lofi, rock, jazz) |
+| `mood` | Categorical label (e.g., happy, chill, intense, moody) |
+| `energy` | Float 0.0–1.0 — how energetic/loud the track feels |
+| `tempo_bpm` | Beats per minute |
+| `valence` | Float 0.0–1.0 — musical positivity |
+| `danceability` | Float 0.0–1.0 — how suited to dancing |
+| `acousticness` | Float 0.0–1.0 — how acoustic (vs. produced) it sounds |
+
+### User Profile
+
+A `UserProfile` stores:
+- `favorite_genre` — the genre the user wants to match
+- `favorite_mood` — the mood the user wants to match
+- `target_energy` — a float 0.0–1.0 representing how intense they want the music
+
+### Algorithm Recipe (Scoring Rule)
+
+For each song in the catalog, the recommender calculates a score:
+
+```
+score = 0.0
+
+if song.genre == user.favorite_genre  →  +2.0 pts
+if song.mood  == user.favorite_mood   →  +1.0 pts
+energy_score  = 1.0 - |song.energy - user.target_energy|  →  +0.0 to +1.0 pts
+
+Total possible: 4.0 pts
+```
+
+Genre is weighted highest because it is the strongest coarse filter — a jazz fan will rarely enjoy metal regardless of mood. Energy uses a proximity formula so songs *close* to the target still earn partial credit.
+
+### Ranking Rule
+
+After scoring every song, the system sorts all results from highest to lowest score and returns the top K results. This two-step process (score first, rank second) is necessary because a score for one song means nothing without comparing it to all other scores.
+
+### Potential Bias
+
+This system may over-prioritize genre matches in a small catalog. If most songs share the same genre as the user's preference, variety in the results will be low regardless of mood or energy differences.
 
 ---
 
