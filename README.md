@@ -60,9 +60,32 @@ Genre is weighted highest because it is the strongest coarse filter — a jazz f
 
 After scoring every song, the system sorts all results from highest to lowest score and returns the top K results. This two-step process (score first, rank second) is necessary because a score for one song means nothing without comparing it to all other scores.
 
+### Data Flow Diagram
+
+```mermaid
+flowchart TD
+    A["User Profile\n(genre, mood, target_energy)"] --> C
+    B["data/songs.csv\n(20 songs)"] --> C
+    C["For each song in catalog..."]
+    C --> D{"Genre match?"}
+    D -- Yes --> E["+2.0 pts"]
+    D -- No --> F["+0.0 pts"]
+    E --> G{"Mood match?"}
+    F --> G
+    G -- Yes --> H["+1.0 pts"]
+    G -- No --> I["+0.0 pts"]
+    H --> J["Energy proximity\n1.0 - abs(song_energy - target_energy)"]
+    I --> J
+    J --> K["Song total score + reasons list"]
+    K --> C
+    C --> L["All 20 songs scored"]
+    L --> M["sorted() by score descending"]
+    M --> N["Return Top K results"]
+```
+
 ### Potential Bias
 
-This system may over-prioritize genre matches in a small catalog. If most songs share the same genre as the user's preference, variety in the results will be low regardless of mood or energy differences.
+The genre weight (+2.0) is double the mood weight (+1.0), so the system strongly favors genre alignment above all else. With 20 songs spread across many genres, most genres have only 1–2 songs each, meaning a genre match almost guarantees a top-3 finish regardless of mood or energy fit. Songs from rare or absent genres will always score lower even if they are a near-perfect energy and mood match.
 
 ---
 
