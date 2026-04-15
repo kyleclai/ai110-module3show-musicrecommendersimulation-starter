@@ -23,15 +23,17 @@ Real-world recommenders like Spotify and TikTok use a mix of two main approaches
 
 Each `Song` object uses these attributes from `data/songs.csv`:
 
-| Feature | Description |
-|---|---|
-| `genre` | Categorical label (e.g., pop, lofi, rock, jazz) |
-| `mood` | Categorical label (e.g., happy, chill, intense, moody) |
-| `energy` | Float 0.0–1.0 — how energetic/loud the track feels |
-| `tempo_bpm` | Beats per minute |
-| `valence` | Float 0.0–1.0 — musical positivity |
-| `danceability` | Float 0.0–1.0 — how suited to dancing |
-| `acousticness` | Float 0.0–1.0 — how acoustic (vs. produced) it sounds |
+| Feature | Type | Used in scoring | Description |
+|---|---|---|---|
+| `genre` | string | yes | Categorical label (e.g., pop, lofi, rock, jazz) |
+| `mood` | string | yes | Categorical label (e.g., happy, chill, intense, moody) |
+| `energy` | float 0.0–1.0 | yes | How energetic/loud the track feels |
+| `popularity` | int 0–100 | yes (optional) | Relative chart/stream popularity |
+| `release_decade` | int | yes (optional) | Decade released: 2000, 2010, or 2020 |
+| `tempo_bpm` | float | stored only | Beats per minute |
+| `valence` | float 0.0–1.0 | stored only | Musical positivity |
+| `danceability` | float 0.0–1.0 | stored only | How suited to dancing |
+| `acousticness` | float 0.0–1.0 | stored only | How acoustic (vs. produced) it sounds |
 
 ### User Profile
 
@@ -39,22 +41,35 @@ A `UserProfile` stores:
 - `favorite_genre` — the genre the user wants to match
 - `favorite_mood` — the mood the user wants to match
 - `target_energy` — a float 0.0–1.0 representing how intense they want the music
+- `target_popularity` *(optional)* — preferred popularity range 0–100
+- `target_decade` *(optional)* — preferred release decade (2000, 2010, or 2020)
 
 ### Algorithm Recipe (Scoring Rule)
 
-For each song in the catalog, the recommender calculates a score:
+Weights for the three primary signals are controlled by the **scoring mode**:
+
+| Mode | Genre weight | Mood weight | Energy weight | Max base score |
+|---|---|---|---|---|
+| `balanced` | 2.0 | 1.0 | ×1.0 | 4.0 |
+| `genre-first` | 4.0 | 0.5 | ×0.5 | 5.0 |
+| `mood-first` | 0.5 | 4.0 | ×0.5 | 5.0 |
+| `energy-focused` | 1.0 | 1.0 | ×2.0 | 4.0 |
+
+Optional bonus signals (added on top of any mode, up to +1.0 total):
 
 ```
 score = 0.0
 
-if song.genre == user.favorite_genre  →  +2.0 pts
-if song.mood  == user.favorite_mood   →  +1.0 pts
-energy_score  = 1.0 - |song.energy - user.target_energy|  →  +0.0 to +1.0 pts
+if song.genre == user.genre         →  + genre_weight  (mode-controlled)
+if song.mood  == user.mood          →  + mood_weight   (mode-controlled)
+energy_score  = (1.0 - |song.energy - user.energy|) × energy_weight  →  +0.0 to +energy_weight
 
-Total possible: 4.0 pts
+# optional — only scored when user provides these preferences:
+popularity_score = (1.0 - |song.popularity - user.target_popularity| / 100) × 0.5  →  up to +0.5
+if song.release_decade == user.target_decade  →  +0.5
 ```
 
-Genre is weighted highest because it is the strongest coarse filter — a jazz fan will rarely enjoy metal regardless of mood. Energy uses a proximity formula so songs *close* to the target still earn partial credit.
+Energy uses a proximity formula so songs *close* to the target energy earn partial credit regardless of whether they are high or low energy.
 
 ### Ranking Rule
 
@@ -85,7 +100,7 @@ flowchart TD
 
 ### Potential Bias
 
-The genre weight (+2.0) is double the mood weight (+1.0), so the system strongly favors genre alignment above all else. With 20 songs spread across many genres, most genres have only 1–2 songs each, meaning a genre match almost guarantees a top-3 finish regardless of mood or energy fit. Songs from rare or absent genres will always score lower even if they are a near-perfect energy and mood match.
+In the default `balanced` mode, the genre weight (+2.0) is double the mood weight (+1.0), so genre alignment dominates. Switching to `mood-first` mode reverses this — a happy song from the wrong genre can outrank an intense song from the right genre. The scoring mode lets you control which signal matters most, but no mode eliminates the underlying problem: with only 1–2 songs per genre in the catalog, a genre match almost guarantees a top-3 finish regardless of how well the song fits the mood or energy.
 
 ---
 
@@ -172,7 +187,7 @@ Gym Hero (pop/intense) and Rooftop Lights (indie pop/happy) swapped positions. W
 ## Limitations and Risks
 
 - **Sparse catalog:** Most genres have only 1 song. A rock or metal user gets one good result and four unrelated ones.
-- **Genre dominates:** The +2.0 genre weight means genre always wins, even when mood is more important to the user.
+- **Genre dominates by default:** The `balanced` mode weights genre at +2.0 vs mood at +1.0. Switching to `mood-first` mode addresses this, but the tradeoff shifts rather than disappears.
 - **No memory:** The same profile produces the same results every run — no adaptation, no variety over time.
 - **No negative scoring:** Even a completely wrong song earns a small positive energy score, adding noise to every ranking.
 - **No language or lyrics:** The system has no understanding of song meaning, only numeric attributes.
