@@ -199,6 +199,7 @@ See [model_card.md](model_card.md) for a full analysis.
 ## Reflection
 
 [**Model Card**](model_card.md)
+<br>
 [**Prompt Guide Notes**](https://gist.github.com/kyleclai/c4a8aeba98d4bdd12b5d53ae87ad0233)
 
 The most surprising thing about building this was how fast three simple rules started to feel like a real recommendation. Score every song, sort the list, return the top results — that loop alone is enough to produce output that often matches your gut feeling about what you'd want to hear. It made the core idea behind Spotify or YouTube feel much less mysterious. The intelligence isn't in the math; it's in the quality of the features and the size of the catalog.
