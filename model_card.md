@@ -16,29 +16,23 @@ The system assumes the user can describe their taste with a single genre, a sing
 
 ## 3. How the Model Works
 
-Imagine you hand a friend a list of your preferences: your favorite genre (like pop or jazz), the mood you want (like happy or chill), how energetic you want it to feel, and optionally how popular you want the songs to be and what era you prefer. Your friend then goes through every song in a catalog and gives each one a score based on how well it matches.
+Imagine you hand a friend a list of your three favorite things about music: your favorite genre (like pop or jazz), the mood you want (like happy or chill), and how energetic you want it to feel on a scale from calm to intense. Your friend then goes through every song in a catalog and gives each one a score based on how well it matches your preferences.
 
-That is exactly what VibeFinder does. For each song it checks three primary signals — genre match, mood match, and energy closeness — and two optional bonus signals — popularity closeness and release decade match. After every song is scored, the list is sorted from highest to lowest, and the top results are returned with an explanation of every point awarded.
+That is exactly what VibeFinder does. For each song, it checks whether the genre matches your favorite (worth 2 points), whether the mood matches (worth 1 point), and how close the song's energy level is to your target (worth up to 1 point — the closer, the more points). The maximum possible score is 4.0. After every song is scored, the list is sorted from highest to lowest, and the top results are returned along with an explanation of why each song ranked where it did.
 
-The weights for genre, mood, and energy are controlled by a **scoring mode** you choose before running:
-- **balanced** — genre matters most, then mood, then energy (default)
-- **genre-first** — genre is worth 4× more than normal; good for users with very strong genre preferences
-- **mood-first** — mood is worth 4× more; good for users who care more about feel than category
-- **energy-focused** — energy proximity is doubled; good for workout or study playlists where intensity is the deciding factor
-
-The "energy score" uses a proximity formula rather than a threshold: instead of rewarding only high-energy or only low-energy songs, it rewards songs that are *close* to whatever level you asked for. A calm user scores calm songs highly; a high-energy user scores intense songs highly.
+The "energy score" is the most interesting part: instead of simply rewarding high-energy or low-energy songs, it rewards songs that are *close* to whatever energy level you asked for. A calm user gets credit for calm songs; a high-energy user gets credit for intense ones.
 
 ---
 
 ## 4. Data
 
-The catalog contains 20 songs stored in `data/songs.csv`. The original starter file had 10 songs; 10 more were added to expand genre and mood coverage.
+The catalog conta ins 20 songs stored in `data/songs.csv`. The original starter file had 10 songs; 10 more were added to expand genre and mood coverage.
 
 Genres represented: pop, lofi, rock, ambient, jazz, synthwave, indie pop, hip-hop, edm, country, classical, r&b, folk, metal, blues, reggae, electronic (17 total).
 
 Moods represented: happy, chill, intense, relaxed, moody, focused, confident, energetic, nostalgic, melancholic, romantic, peaceful, aggressive, soulful, uplifting, dreamy (16 total).
 
-Each song has 12 columns. The primary scoring features are genre, mood, energy (0.0–1.0), popularity (0–100), and release decade (2000, 2010, or 2020). Popularity and decade are optional — they only contribute to the score when the user's profile specifies a preference for them. The remaining columns — tempo in BPM, valence, danceability, and acousticness — are stored in the CSV but not yet used in scoring.
+Each song includes numeric features for energy (0.0–1.0), tempo in BPM, valence (musical positivity), danceability, and acousticness — though VibeFinder 1.0 only uses energy in its scoring. The other features exist in the data but are not currently factored into recommendations.
 
 The dataset was constructed manually for classroom purposes. It does not reflect real streaming data, real listener behavior, or any demographic. Genres like lofi and pop have 3 songs each while most other genres have only 1, which creates an uneven distribution.
 
@@ -52,13 +46,11 @@ The system is fully transparent. Every recommendation comes with a plain-languag
 
 The scoring is also symmetric: it does not inherently favor high-energy or low-energy songs. A user who wants very quiet music (energy=0.2) and a user who wants very loud music (energy=0.95) both get the same quality of energy-based scoring, because the formula measures distance from the target rather than rewarding a particular direction.
 
-The four scoring modes give users meaningful control over which signal drives their recommendations. Switching from `balanced` to `mood-first` caused Rooftop Lights (indie pop/happy) to rise from #3 to #2, above Gym Hero (pop/intense), because mood alignment became worth more than genre alignment. This kind of strategy switch is something most real recommenders hide from users entirely.
-
 ---
 
 ## 6. Limitations and Bias
 
-In the default `balanced` mode, the genre weight (+2.0) is double the mood weight (+1.0), which means a genre match dominates the score even when the mood is completely wrong. A user who asks for "peaceful EDM" will receive an energetic EDM track at #1 simply because genre alignment outweighs the mood mismatch. The `mood-first` mode reduces this bias but shifts it in the other direction — genre becomes nearly irrelevant. There is no mode that perfectly balances the two without more data.
+The genre weight (+2.0) is double the mood weight (+1.0), which means a genre match dominates the score even when the mood is completely wrong. A user who asks for "peaceful EDM" will receive an energetic EDM track at #1 simply because genre alignment outweighs the mood mismatch. This is a built-in structural bias toward genre over feel.
 
 The catalog only has one rock song, one metal song, and one country song. Users with those genre preferences will see that single song at #1 and then get unrelated songs at #2–5 sorted purely by energy — the recommender cannot provide meaningful variety for underrepresented genres. This creates an unequal experience depending on which genre a user prefers.
 
@@ -87,7 +79,7 @@ The two automated tests in `tests/test_recommender.py` both pass, confirming tha
 
 **Add a diversity penalty.** Right now the same artist or genre can appear multiple times in the top results. A simple rule — reduce the score of any song whose genre already appears in the top results — would force more variety into the recommendations and reduce the "filter bubble" effect.
 
-**Use the remaining stored features in scoring.** Popularity and release decade are now scored, but valence, danceability, and acousticness are still stored in the CSV without contributing to recommendations. Adding an `likes_acoustic` preference to the user profile and scoring it against `acousticness` would meaningfully differentiate profiles like "chill acoustic folk" from "chill electronic ambient" — two profiles that currently score identically on genre, mood, and energy.
+**Use more song features in scoring.** The catalog already has valence, danceability, and acousticness for every song, but VibeFinder 1.0 ignores them. Adding a user preference for acousticness (does the user want live/acoustic or produced/electronic?) and incorporating it into the score would make recommendations much more nuanced, especially for profiles where energy alone is not enough to differentiate songs.
 
 **Expand the catalog and balance genres.** Most genres in the current dataset have only one song. A real content-based recommender needs at least 5–10 songs per genre to provide meaningful variety. Doubling the catalog size and ensuring each genre has at least 3 songs would make the recommender significantly more useful across all profile types.
 
